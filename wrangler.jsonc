@@ -1,6 +1,8 @@
-
-“assets”: {
-“directory”: “./”,
-“not_found_handling”: “single-page-application”
+{
+  "name": "autoads",
+  "compatibility_date": "2026-10-15",
+  "assets": {
+    "directory": "./",
+    "not_found_handling": "single-page-application"
+  }
 }
-
