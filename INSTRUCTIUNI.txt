@@ -1,0 +1,8 @@
+AutoAds — pachet fără foldere
+
+Toate fișierele sunt la rădăcina arhivei. Încarcă fișierele dezarhivate în rădăcina repository-ului GitHub.
+
+În Cloudflare, comanda de deploy trebuie să fie: npx wrangler deploy
+Configurația wrangler.jsonc indică fișierele statice din directorul curent.
+
+Limitare importantă: această versiune este prototipul static cu interfața și calendarul local. Nu publică automat pe Facebook, Instagram sau TikTok și nu include backend-ul OAuth.
