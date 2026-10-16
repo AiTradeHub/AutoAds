@@ -5,6 +5,7 @@
   const DB_VERSION = 1;
   const STORE = 'projects';
   let dbPromise;
+  let activeProjectId = null;
 
   function status(message, isError = false) {
     const node = $('projectLibraryStatus');
@@ -69,7 +70,7 @@
     const files = Array.from($('mediaInput').files || []);
     const title = $('projectName').value.trim() || $('product').value.trim() || $('business').value.trim() || 'Proiect AutoAds';
     return {
-      id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(16).slice(2)),
+      id: activeProjectId || ((window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(16).slice(2))),
       name: title.slice(0, 80),
       updatedAt: Date.now(),
       fields: {
@@ -154,7 +155,18 @@
     $('saveProject').disabled = true;
     $('saveProject').textContent = 'Se salvează…';
     try {
+      const existing = (await allProjects()).find((item) =>
+        item.id === project.id || item.name.toLocaleLowerCase('ro-RO') === project.name.toLocaleLowerCase('ro-RO')
+      );
+      if (existing && existing.id !== project.id) {
+        if (!window.confirm('Există deja un proiect cu acest nume. Vrei să îl înlocuiești?')) {
+          status('Salvarea a fost anulată.');
+          return;
+        }
+        project.id = existing.id;
+      }
       await putProject(project);
+      activeProjectId = project.id;
       $('projectName').value = project.name;
       status('Proiectul „' + project.name + '” a fost salvat local, împreună cu ' + project.media.length + ' fișier(e).');
       await renderProjects();
@@ -174,6 +186,7 @@
         await renderProjects();
         return;
       }
+      activeProjectId = project.id;
       const f = project.fields || {};
       ['business', 'product', 'details', 'tone', 'goal', 'outTitle', 'outCaption'].forEach((key) => {
         if ($(key) && f[key] !== undefined) $(key).value = f[key];
@@ -216,8 +229,34 @@
     }
   }
 
+  function startNewProject() {
+    if (!window.confirm('Începi un proiect nou? Asigură-te că ai salvat modificările proiectului curent.')) return;
+    activeProjectId = null;
+    $('projectName').value = '';
+    ['business', 'product', 'details', 'outTitle', 'outCaption'].forEach((id) => { $(id).value = ''; });
+    $('tone').value = 'friendly';
+    $('goal').value = 'messages';
+    const tiktok = Array.from(document.querySelectorAll('[data-platform]')).find((button) => button.dataset.platform === 'TikTok');
+    if (tiktok) tiktok.click();
+    $('formatSelect').value = '9/16';
+    $('overlayPosition').value = 'bottom';
+    $('overlayStyle').value = 'gradient';
+    $('ctaText').value = 'AFLĂ MAI MULTE';
+    ['formatSelect', 'overlayPosition', 'overlayStyle'].forEach((id) => $(id).dispatchEvent(new Event('change', { bubbles: true })));
+    $('ctaText').dispatchEvent(new Event('input', { bubbles: true }));
+    $('hookOverlay').textContent = 'DESCOPERĂ DIFERENȚA';
+    $('productOverlay').textContent = 'Reclama ta începe aici';
+    $('ctaOverlay').textContent = 'AFLĂ MAI MULTE →';
+    $('outputCard').classList.remove('show');
+    $('mediaInput').value = '';
+    $('mediaInput').dispatchEvent(new Event('change', { bubbles: true }));
+    status('Proiect nou. Completează detaliile și salvează când ești gata.');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     $('saveProject')?.addEventListener('click', saveProject);
+    $('newProject')?.addEventListener('click', startNewProject);
     renderProjects();
   });
 })();
