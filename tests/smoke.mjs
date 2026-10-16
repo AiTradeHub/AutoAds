@@ -7,6 +7,9 @@ const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const html = read('index.html');
 const projectScript = read('project-library.js');
+const workerSource = read('worker.js');
+const workerConfig = JSON.parse(read('wrangler.jsonc'));
+const privacy = read('privacy.html');
 const sw = read('sw.js');
 const manifest = JSON.parse(read('manifest.webmanifest'));
 
@@ -25,6 +28,12 @@ assert.match(projectScript, /createObjectStore\('schedules'/, 'Calendar entries 
 assert.match(projectScript, /function addSchedule/, 'Calendar scheduling behavior should exist');
 assert.match(projectScript, /scheduledDate\.getTime\(\) <= Date\.now\(\)/, 'Past schedule times should be rejected');
 assert.match(sw, /'\.\/project-library\.js'/, 'Offline shell should cache the project library script');
+assert.match(html, /fetch\('\/api\/generate'/, 'UI should call the AI endpoint');
+assert.match(html, /async function exportVideo\(file\)/, 'Video export should be implemented');
+assert.match(workerSource, /env\.AI\.run/, 'Worker should call Cloudflare Workers AI');
+assert.equal(workerConfig.main, 'worker.js', 'Cloudflare should deploy the API Worker');
+assert.equal(workerConfig.assets.directory, './public', 'Only public assets should be deployed');
+assert.match(privacy, /Cloudflare Workers AI/, 'Privacy notice should disclose AI text processing');
 assert.ok(manifest.name && manifest.start_url, 'PWA manifest should include name and start URL');
 
 const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
@@ -48,6 +57,7 @@ for (const [index, script] of inlineScripts.entries()) {
 }
 new vm.Script(projectScript, { filename: 'project-library.js' });
 new vm.Script(sw, { filename: 'sw.js' });
+new vm.Script(workerSource.replace(/^export default\s*/, 'const worker = '), { filename: 'worker.js' });
 
 for (const match of html.matchAll(/<(?:script|link|img)\b[^>]*(?:src|href)="([^"]+)"/gi)) {
   const url = match[1];
@@ -56,7 +66,7 @@ for (const match of html.matchAll(/<(?:script|link|img)\b[^>]*(?:src|href)="([^"
   if (!localPath) continue;
   assert.ok(fs.existsSync(path.join(root, localPath)), 'Referenced local asset must exist: ' + url);
 }
-for (const file of ['terms.html', 'privacy.html', 'project-library.js', 'sw.js']) {
+for (const file of ['terms.html', 'privacy.html', 'project-library.js', 'sw.js', 'worker.js', 'public/index.html', 'public/terms.html', 'public/privacy.html', 'public/terms/index.html', 'public/privacy/index.html']) {
   assert.ok(fs.existsSync(path.join(root, file)), 'Required app file must exist: ' + file);
 }
 
