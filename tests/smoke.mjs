@@ -13,6 +13,7 @@ const workerSource = read('worker.js');
 const sw = read('sw.js');
 const manifest = JSON.parse(read('manifest.webmanifest'));
 const workerConfig = JSON.parse(read('wrangler.jsonc'));
+const packageJson = JSON.parse(read('package.json'));
 const privacy = read('privacy.html');
 
 assert.match(html, /<html lang="ro">/, 'App should declare Romanian as its language');
@@ -35,6 +36,8 @@ assert.match(projectScript, /scheduledDate\.getTime\(\) <= Date\.now\(\)/, 'Past
 assert.match(sw, /'\.\/project-library\.js'/, 'Offline shell should cache the project library script');
 assert.ok(manifest.name && manifest.start_url, 'PWA manifest should include name and start URL');
 assert.equal(workerConfig.main, 'worker.js', 'Cloudflare should deploy the API Worker');
+assert.equal(packageJson.type, 'module', 'Worker should use ES module syntax');
+assert.equal(packageJson.scripts.build, 'node tests/smoke.mjs', 'Build should run the smoke tests');
 assert.equal(workerConfig.assets.directory, './public', 'Only public assets should be deployed');
 assert.equal(workerConfig.assets.binding, 'ASSETS', 'Static assets binding should exist');
 assert.equal(workerConfig.ai.binding, 'AI', 'Workers AI binding should exist');
