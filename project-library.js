@@ -201,7 +201,7 @@
       status('Proiectul „' + project.name + '” a fost deschis.');
       $('projectLibraryCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (error) {
-      status('Nu am putut deschide proiectul. ' + (error.message || 'Browserul poate să nu permită restaurarea fișierelor.')), true);
+      status('Nu am putut deschide proiectul. ' + (error.message || 'Browserul poate să nu permită restaurarea fișierelor.'), true);
     }
   }
 
