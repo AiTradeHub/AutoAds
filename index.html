@@ -49,11 +49,117 @@ function renderMedia(recreate=true){if(recreate){revokeUrls();objectUrls=selecte
 document.querySelectorAll('[data-platform]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-platform]').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');activePlatform=b.dataset.platform;$('formatSelect').value=activePlatform==='Google'?'1/1':activePlatform==='Instagram'?'4/5':'9/16';applyEditorSettings()}));
 function applyEditorSettings(){const val=$('formatSelect').value;const names={'9/16':'9:16 · Vertical','4/5':'4:5 · Portret','1/1':'1:1 · Pătrat','16/9':'16:9 · Peisaj'};$('previewStage').style.setProperty('--preview-ratio',val.replace('/',' / '));$('formatBadge').textContent=names[val]||val;$('previewStage').dataset.position=$('overlayPosition').value;$('previewStage').dataset.style=$('overlayStyle').value;$('ctaOverlay').textContent=($('ctaText').value.trim()||'AFLĂ MAI MULTE').toLocaleUpperCase('ro-RO')+' →'}
 ['formatSelect','overlayPosition','overlayStyle','ctaText'].forEach(id=>$(id).addEventListener('change',applyEditorSettings));$('ctaText').addEventListener('input',applyEditorSettings);
-function buildCopy(){const business=$('business').value.trim()||'afacerea ta';const product=$('product').value.trim()||'produsele și serviciile noastre';const details=$('details').value.trim();const tone=$('tone').value,goal=$('goal').value;let hook= tone==='premium'?'Experiența pe care o meriți':tone==='direct'?'E timpul să alegi mai bine':tone==='playful'?'Hai să-ți faci o bucurie':'Descoperă ceva pe gustul tău';if(goal==='sales')hook='Oferta pe care o așteptai';if(goal==='visits')hook='Următoarea ta vizită începe aici';if(goal==='awareness')hook='Fă cunoștință cu '+business;if(product.length<38)hook=goal==='awareness'?'Descoperă '+product:hook;const cta=goal==='messages'?'Scrie-ne pentru detalii':goal==='sales'?'Cere oferta':'Află mai multe';let opening=tone==='premium'?`Descoperă ${product.toLowerCase()} de la ${business}.`:tone==='direct'?`${product} — află mai multe de la ${business}.`:tone==='playful'?`Un mic upgrade pentru tine: ${product.toLowerCase()}!`:`La ${business}, te ajutăm cu ${product.toLowerCase()}.`;let caption=opening+(details?'\n\n'+details:'')+'\n\n'+cta+'.';let tags=[business,product,'Romania','Recomandari'].map(s=>'#'+s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'')).filter(s=>s.length>1).slice(0,4);caption+='\n\n'+tags.join(' ');$('outTitle').value=hook;$('outCaption').value=caption;$('hookOverlay').textContent=hook.toLocaleUpperCase('ro-RO');$('productOverlay').textContent=product;$('ctaText').value=cta;$('ctaOverlay').textContent=cta.toLocaleUpperCase('ro-RO')+' →';applyEditorSettings();$('previewCard').classList.add('show');$('outputCard').classList.add('show');$('previewCard').scrollIntoView({behavior:'smooth',block:'start'});}
+function buildLocalCopy(){const business=$('business').value.trim()||'afacerea ta';const product=$('product').value.trim()||'produsele și serviciile noastre';const details=$('details').value.trim();const tone=$('tone').value,goal=$('goal').value;let hook= tone==='premium'?'Experiența pe care o meriți':tone==='direct'?'E timpul să alegi mai bine':tone==='playful'?'Hai să-ți faci o bucurie':'Descoperă ceva pe gustul tău';if(goal==='sales')hook='Oferta pe care o așteptai';if(goal==='visits')hook='Următoarea ta vizită începe aici';if(goal==='awareness')hook='Fă cunoștință cu '+business;if(product.length<38)hook=goal==='awareness'?'Descoperă '+product:hook;const cta=goal==='messages'?'Scrie-ne pentru detalii':goal==='sales'?'Cere oferta':'Află mai multe';let opening=tone==='premium'?`Descoperă ${product.toLowerCase()} de la ${business}.`:tone==='direct'?`${product} — află mai multe de la ${business}.`:tone==='playful'?`Un mic upgrade pentru tine: ${product.toLowerCase()}!`:`La ${business}, te ajutăm cu ${product.toLowerCase()}.`;let caption=opening+(details?'\n\n'+details:'')+'\n\n'+cta+'.';let tags=[business,product,'Romania','Recomandari'].map(s=>'#'+s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'')).filter(s=>s.length>1).slice(0,4);caption+='\n\n'+tags.join(' ');$('outTitle').value=hook;$('outCaption').value=caption;$('hookOverlay').textContent=hook.toLocaleUpperCase('ro-RO');$('productOverlay').textContent=product;$('ctaText').value=cta;$('ctaOverlay').textContent=cta.toLocaleUpperCase('ro-RO')+' →';applyEditorSettings();$('previewCard').classList.add('show');$('outputCard').classList.add('show');$('previewCard').scrollIntoView({behavior:'smooth',block:'start'});}
+async function buildCopy(){
+  const button=$('generate');
+  const business=$('business').value.trim()||'afacerea ta';
+  const product=$('product').value.trim()||'produsele și serviciile noastre';
+  const details=$('details').value.trim();
+  button.disabled=true;
+  const oldLabel=button.textContent;
+  button.textContent='Generez reclama…';
+  try{
+    const response=await fetch('/api/generate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({business:business,product:product,details:details,tone:$('tone').value,goal:$('goal').value})});
+    const data=await response.json();
+    if(!response.ok||!data.title||!data.caption)throw new Error(data.error||'AI indisponibil');
+    $('outTitle').value=data.title;
+    $('outCaption').value=data.caption;
+    $('hookOverlay').textContent=data.title.toLocaleUpperCase('ro-RO');
+    $('productOverlay').textContent=product;
+    const cta=$('goal').value==='messages'?'Scrie-ne pentru detalii':$('goal').value==='sales'?'Cere oferta':'Află mai multe';
+    $('ctaText').value=cta;
+    $('ctaOverlay').textContent=cta.toLocaleUpperCase('ro-RO')+' →';
+    applyEditorSettings();
+    $('previewCard').classList.add('show');
+    $('outputCard').classList.add('show');
+    $('previewCard').scrollIntoView({behavior:'smooth',block:'start'});
+    toast('Reclama a fost generată cu AI.');
+  }catch(error){
+    buildLocalCopy();
+    toast('AI indisponibil momentan. Am folosit generarea locală.');
+  }finally{
+    button.disabled=false;
+    button.textContent=oldLabel;
+  }
+}
 $('generate').addEventListener('click',()=>{if(!selectedFiles.length){toast('Adaugă mai întâi o fotografie sau un videoclip.');$('mediaInput').click();return}buildCopy()});$('newCopy').addEventListener('click',buildCopy);
 $('outTitle').addEventListener('input',()=>{$('hookOverlay').textContent=$('outTitle').value.toLocaleUpperCase('ro-RO')});$('product').addEventListener('input',()=>{if($('outputCard').classList.contains('show'))$('productOverlay').textContent=$('product').value||'Reclama ta'});
 $('copyCaption').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('outCaption').value);toast('Descrierea și hashtagurile au fost copiate.')}catch(e){$('outCaption').select();toast('Selectează și copiază textul manual.')}});
-$('downloadImage').addEventListener('click',()=>{const file=selectedFiles[activeMediaIndex];if(!file){toast('Adaugă o fotografie mai întâi.');return}if(!file.type.startsWith('image/')){toast('Exportul video cu text nu este implementat încă. Poți distribui clipul original.');return}const img=$('previewImg');if(!img.naturalWidth||!img.naturalHeight){toast('Fotografia încă se încarcă. Încearcă din nou.');return}const ratioParts=$('formatSelect').value.split('/').map(Number);const ratio=ratioParts[0]/ratioParts[1];const width=ratio<1||ratio===1?1080:1920;const height=Math.round(width/ratio);const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const c=canvas.getContext('2d');if(!c){toast('Browserul nu permite exportul imaginii.');return}const scale=Math.max(width/img.naturalWidth,height/img.naturalHeight);const drawW=img.naturalWidth*scale;const drawH=img.naturalHeight*scale;c.drawImage(img,(width-drawW)/2,(height-drawH)/2,drawW,drawH);const pad=width*.07;const maxTextWidth=width-pad*2;const fontSize=Math.max(22,width*(ratio<1?.052:.035));const hook=$('outTitle').value.trim()||$('hookOverlay').textContent;const product=$('product').value.trim()||'Reclama ta';const cta=($('ctaText').value.trim()||'AFLĂ MAI MULTE').toLocaleUpperCase('ro-RO');const hookFont=fontSize*.55;const hookHeight=fontSize*1.7;const productFont=fontSize*1.15;const lineHeight=productFont*1.22;const estimatedBlock=hookHeight+fontSize*.45+lineHeight*3+fontSize*.55+fontSize*1.65;const position=$('overlayPosition').value;let y=position==='top'?pad:position==='middle'?Math.max(pad,(height-estimatedBlock)/2):Math.max(pad,height-estimatedBlock-pad);const style=$('overlayStyle').value;c.save();c.shadowColor='rgba(0,0,0,.7)';c.shadowBlur=fontSize*.22;c.shadowOffsetY=fontSize*.04;const hookText=hook.toLocaleUpperCase('ro-RO').slice(0,70);c.font='800 '+hookFont+'px system-ui';const hookWidth=Math.min(maxTextWidth,Math.max(fontSize*5,c.measureText(hookText).width+fontSize*.9));if(style==='gradient'){const grad=c.createLinearGradient(pad,y,pad+hookWidth,y);grad.addColorStop(0,'#8b5cf6');grad.addColorStop(1,'#4f7cff');c.fillStyle=grad;c.fillRect(pad,y,hookWidth,hookHeight)}else if(style==='dark'){c.fillStyle='rgba(12,13,25,.88)';c.fillRect(pad,y,hookWidth,hookHeight);c.strokeStyle='rgba(255,255,255,.5)';c.lineWidth=Math.max(1,width*.001);c.strokeRect(pad,y,hookWidth,hookHeight)}else{c.strokeStyle='#fff';c.lineWidth=Math.max(1,width*.0015);c.strokeRect(pad,y,hookWidth,hookHeight)}c.fillStyle='#fff';c.shadowBlur=0;c.fillText(hookText,pad+fontSize*.45,y+hookHeight*.64,hookWidth-fontSize*.7);y+=hookHeight+fontSize*.45;c.font='900 '+productFont+'px system-ui';c.fillStyle='#fff';c.shadowColor='rgba(0,0,0,.85)';c.shadowBlur=fontSize*.2;const words=product.split(/\s+/);let line='';const lines=[];let truncated=false;for(let i=0;i<words.length;i++){const test=line?line+' '+words[i]:words[i];if(c.measureText(test).width>maxTextWidth&&line){lines.push(line);line=words[i];if(lines.length===3){truncated=true;break}}else{line=test}}if(line&&lines.length<3)lines.push(line);if(truncated&&lines.length)lines[lines.length-1]=lines[lines.length-1]+'…';lines.slice(0,3).forEach((lineText,index)=>c.fillText(lineText,pad,y+index*lineHeight,maxTextWidth));y+=Math.max(1,Math.min(3,lines.length))*lineHeight+fontSize*.55;c.shadowBlur=0;c.shadowOffsetY=0;c.font='800 '+hookFont+'px system-ui';const ctaWidth=Math.min(maxTextWidth,c.measureText(cta).width+fontSize*.9);const ctaHeight=fontSize*1.65;if(style==='minimal'){c.strokeStyle='#fff';c.lineWidth=Math.max(1,width*.0015);c.strokeRect(pad,y,ctaWidth,ctaHeight);c.fillStyle='#fff'}else{c.fillStyle='#fff';c.fillRect(pad,y,ctaWidth,ctaHeight);c.fillStyle='#161226'}c.fillText(cta.slice(0,38),pad+fontSize*.35,y+ctaHeight*.63,ctaWidth-fontSize*.65);c.restore();canvas.toBlob(blob=>{if(!blob){toast('Nu am putut exporta imaginea.');return}const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='autoads-reclama-'+ratioParts.join('x')+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);toast('Imaginea cu text a fost salvată în formatul selectat.')},'image/png')});function wrapText(ctx,text,x,y,maxWidth,lineHeight,maxLines){let words=text.split(/\s+/),line='',n=0;for(let i=0;i<words.length;i++){const test=line+words[i]+' ';if(ctx.measureText(test).width>maxWidth&&i>0){ctx.fillText(line,x,y+n*lineHeight,maxWidth);line=words[i]+' ';n++;if(n>=maxLines-1)break}else line=test}ctx.fillText(line.trim(),x,y+n*lineHeight,maxWidth)}
+async function exportVideo(file){
+  if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream){toast('Browserul nu suportă exportul video. Folosește Chrome sau Edge actualizat.');return}
+  const button=$('downloadImage');
+  if(button.disabled)return;
+  button.disabled=true;
+  toast('Pregătesc exportul video. Nu închide pagina.');
+  const video=document.createElement('video');
+  const sourceUrl=URL.createObjectURL(file);
+  video.preload='auto';video.playsInline=true;video.muted=false;video.src=sourceUrl;
+  let audioContext=null, audioSource=null, animation=0, recorder=null, stopped=false;
+  const cleanup=()=>{if(animation)cancelAnimationFrame(animation);try{video.pause()}catch(e){}video.removeAttribute('src');video.load();URL.revokeObjectURL(sourceUrl);if(audioContext&&audioContext.state!=='closed')audioContext.close().catch(()=>{});button.disabled=false};
+  try{
+    await new Promise((resolve,reject)=>{video.onloadedmetadata=resolve;video.onerror=()=>reject(new Error('Nu pot citi videoclipul selectat.'));video.load()});
+    if(!Number.isFinite(video.duration)||video.duration<=0)throw new Error('Durata videoclipului nu este validă.');
+    if(video.duration>120)throw new Error('Pentru export, alege un clip de maximum 120 de secunde.');
+    const parts=$('formatSelect').value.split('/').map(Number),ratio=parts[0]/parts[1];
+    const width=ratio<1||ratio===1?1080:1920,height=Math.round(width/ratio);
+    const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+    const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Canvas-ul nu este disponibil.');
+    const stream=canvas.captureStream(30);
+    if(window.AudioContext||window.webkitAudioContext){
+      const AudioCtor=window.AudioContext||window.webkitAudioContext;
+      audioContext=new AudioCtor();audioSource=audioContext.createMediaElementSource(video);
+      const destination=audioContext.createMediaStreamDestination();audioSource.connect(destination);
+      destination.stream.getAudioTracks().forEach(track=>stream.addTrack(track));
+      await audioContext.resume();
+    }else{toast('Browserul nu permite includerea sunetului; încerc exportul video fără audio.')}
+    const mimeTypes=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+    const mimeType=mimeTypes.find(type=>MediaRecorder.isTypeSupported(type));
+    if(!mimeType)throw new Error('Browserul nu oferă un format video compatibil.');
+    recorder=new MediaRecorder(stream,{mimeType:mimeType,videoBitsPerSecond:5000000});
+    const chunks=[];
+    recorder.ondataavailable=event=>{if(event.data&&event.data.size)chunks.push(event.data)};
+    recorder.onerror=()=>{if(!stopped){stopped=true;cleanup();toast('Exportul video a eșuat. Încearcă un clip mai scurt.')}};
+    recorder.onstop=()=>{
+      stream.getTracks().forEach(track=>track.stop());
+      if(!stopped){stopped=true;const blob=new Blob(chunks,{type:mimeType});cleanup();if(!blob.size){toast('Fișierul video exportat este gol.');return}const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='autoads-reclama-'+parts.join('x')+'.webm';a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);toast('Videoclipul cu text a fost exportat.')}
+    };
+    const draw=()=>{
+      if(video.readyState>=2){
+        const scale=Math.max(width/video.videoWidth,height/video.videoHeight),dw=video.videoWidth*scale,dh=video.videoHeight*scale;
+        ctx.fillStyle='#090a12';ctx.fillRect(0,0,width,height);ctx.drawImage(video,(width-dw)/2,(height-dh)/2,dw,dh);
+        const pad=width*.07,maxWidth=width-pad*2,font=Math.max(22,width*(ratio<1?.052:.035));
+        const hook=($('outTitle').value.trim()||$('hookOverlay').textContent||'DESCOPERĂ').toLocaleUpperCase('ro-RO').slice(0,70);
+        const product=($('product').value.trim()||'Reclama ta').slice(0,180);
+        const cta=($('ctaText').value.trim()||'AFLĂ MAI MULTE').toLocaleUpperCase('ro-RO').slice(0,38);
+        const hookFont=font*.55,hookH=font*1.7,productFont=font*1.05,lineH=productFont*1.22,ctaH=font*1.65;
+        const blockH=hookH+font*.45+lineH*3+font*.55+ctaH;
+        const pos=$('overlayPosition').value;let y=pos==='top'?pad:pos==='middle'?Math.max(pad,(height-blockH)/2):Math.max(pad,height-blockH-pad);
+        const style=$('overlayStyle').value;
+        ctx.save();ctx.shadowColor='rgba(0,0,0,.7)';ctx.shadowBlur=font*.2;ctx.font='800 '+hookFont+'px system-ui';
+        const hookW=Math.min(maxWidth,Math.max(font*5,ctx.measureText(hook).width+font*.9));
+        if(style==='gradient'){const grad=ctx.createLinearGradient(pad,y,pad+hookW,y);grad.addColorStop(0,'#8b5cf6');grad.addColorStop(1,'#4f7cff');ctx.fillStyle=grad;ctx.fillRect(pad,y,hookW,hookH)}
+        else if(style==='dark'){ctx.fillStyle='rgba(12,13,25,.88)';ctx.fillRect(pad,y,hookW,hookH);ctx.strokeStyle='rgba(255,255,255,.5)';ctx.strokeRect(pad,y,hookW,hookH)}
+        else{ctx.strokeStyle='#fff';ctx.lineWidth=Math.max(1,width*.0015);ctx.strokeRect(pad,y,hookW,hookH)}
+        ctx.fillStyle='#fff';ctx.shadowBlur=0;ctx.fillText(hook,pad+font*.45,y+hookH*.64,hookW-font*.7);y+=hookH+font*.45;
+        ctx.font='900 '+productFont+'px system-ui';ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=font*.2;
+        const words=product.split(/\s+/);let line='',lines=[];
+        for(let i=0;i<words.length;i++){const candidate=line?line+' '+words[i]:words[i];if(ctx.measureText(candidate).width>maxWidth&&line){lines.push(line);line=words[i];if(lines.length===3){lines[2]=lines[2]+'…';break}}else line=candidate}
+        if(line&&lines.length<3)lines.push(line);
+        lines.slice(0,3).forEach((text,index)=>ctx.fillText(text,pad,y+index*lineH,maxWidth));y+=Math.max(1,Math.min(3,lines.length))*lineH+font*.55;
+        ctx.shadowBlur=0;ctx.font='800 '+hookFont+'px system-ui';const ctaW=Math.min(maxWidth,ctx.measureText(cta).width+font*.9);
+        if(style==='minimal'){ctx.strokeStyle='#fff';ctx.lineWidth=Math.max(1,width*.0015);ctx.strokeRect(pad,y,ctaW,ctaH);ctx.fillStyle='#fff'}
+        else{ctx.fillStyle='#fff';ctx.fillRect(pad,y,ctaW,ctaH);ctx.fillStyle='#161226'}
+        ctx.fillText(cta,pad+font*.35,y+ctaH*.63,ctaW-font*.65);ctx.restore();
+      }
+      if(!stopped&&video&&!video.ended)animation=requestAnimationFrame(draw);
+    };
+    video.onended=()=>{if(recorder&&recorder.state!=='inactive')recorder.stop()};
+    recorder.start(1000);
+    await video.play();
+    draw();
+  }catch(error){if(recorder&&recorder.state!=='inactive'){try{recorder.stop()}catch(e){}}cleanup();toast(error.message||'Nu am putut exporta videoclipul.')}
+}
+$('downloadImage').addEventListener('click',()=>{const file=selectedFiles[activeMediaIndex];if(!file){toast('Adaugă o fotografie mai întâi.');return}if(file.type.startsWith('video/')){exportVideo(file);return}const img=$('previewImg');if(!img.naturalWidth||!img.naturalHeight){toast('Fotografia încă se încarcă. Încearcă din nou.');return}const ratioParts=$('formatSelect').value.split('/').map(Number);const ratio=ratioParts[0]/ratioParts[1];const width=ratio<1||ratio===1?1080:1920;const height=Math.round(width/ratio);const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const c=canvas.getContext('2d');if(!c){toast('Browserul nu permite exportul imaginii.');return}const scale=Math.max(width/img.naturalWidth,height/img.naturalHeight);const drawW=img.naturalWidth*scale;const drawH=img.naturalHeight*scale;c.drawImage(img,(width-drawW)/2,(height-drawH)/2,drawW,drawH);const pad=width*.07;const maxTextWidth=width-pad*2;const fontSize=Math.max(22,width*(ratio<1?.052:.035));const hook=$('outTitle').value.trim()||$('hookOverlay').textContent;const product=$('product').value.trim()||'Reclama ta';const cta=($('ctaText').value.trim()||'AFLĂ MAI MULTE').toLocaleUpperCase('ro-RO');const hookFont=fontSize*.55;const hookHeight=fontSize*1.7;const productFont=fontSize*1.15;const lineHeight=productFont*1.22;const estimatedBlock=hookHeight+fontSize*.45+lineHeight*3+fontSize*.55+fontSize*1.65;const position=$('overlayPosition').value;let y=position==='top'?pad:position==='middle'?Math.max(pad,(height-estimatedBlock)/2):Math.max(pad,height-estimatedBlock-pad);const style=$('overlayStyle').value;c.save();c.shadowColor='rgba(0,0,0,.7)';c.shadowBlur=fontSize*.22;c.shadowOffsetY=fontSize*.04;const hookText=hook.toLocaleUpperCase('ro-RO').slice(0,70);c.font='800 '+hookFont+'px system-ui';const hookWidth=Math.min(maxTextWidth,Math.max(fontSize*5,c.measureText(hookText).width+fontSize*.9));if(style==='gradient'){const grad=c.createLinearGradient(pad,y,pad+hookWidth,y);grad.addColorStop(0,'#8b5cf6');grad.addColorStop(1,'#4f7cff');c.fillStyle=grad;c.fillRect(pad,y,hookWidth,hookHeight)}else if(style==='dark'){c.fillStyle='rgba(12,13,25,.88)';c.fillRect(pad,y,hookWidth,hookHeight);c.strokeStyle='rgba(255,255,255,.5)';c.lineWidth=Math.max(1,width*.001);c.strokeRect(pad,y,hookWidth,hookHeight)}else{c.strokeStyle='#fff';c.lineWidth=Math.max(1,width*.0015);c.strokeRect(pad,y,hookWidth,hookHeight)}c.fillStyle='#fff';c.shadowBlur=0;c.fillText(hookText,pad+fontSize*.45,y+hookHeight*.64,hookWidth-fontSize*.7);y+=hookHeight+fontSize*.45;c.font='900 '+productFont+'px system-ui';c.fillStyle='#fff';c.shadowColor='rgba(0,0,0,.85)';c.shadowBlur=fontSize*.2;const words=product.split(/\s+/);let line='';const lines=[];let truncated=false;for(let i=0;i<words.length;i++){const test=line?line+' '+words[i]:words[i];if(c.measureText(test).width>maxTextWidth&&line){lines.push(line);line=words[i];if(lines.length===3){truncated=true;break}}else{line=test}}if(line&&lines.length<3)lines.push(line);if(truncated&&lines.length)lines[lines.length-1]=lines[lines.length-1]+'…';lines.slice(0,3).forEach((lineText,index)=>c.fillText(lineText,pad,y+index*lineHeight,maxTextWidth));y+=Math.max(1,Math.min(3,lines.length))*lineHeight+fontSize*.55;c.shadowBlur=0;c.shadowOffsetY=0;c.font='800 '+hookFont+'px system-ui';const ctaWidth=Math.min(maxTextWidth,c.measureText(cta).width+fontSize*.9);const ctaHeight=fontSize*1.65;if(style==='minimal'){c.strokeStyle='#fff';c.lineWidth=Math.max(1,width*.0015);c.strokeRect(pad,y,ctaWidth,ctaHeight);c.fillStyle='#fff'}else{c.fillStyle='#fff';c.fillRect(pad,y,ctaWidth,ctaHeight);c.fillStyle='#161226'}c.fillText(cta.slice(0,38),pad+fontSize*.35,y+ctaHeight*.63,ctaWidth-fontSize*.65);c.restore();canvas.toBlob(blob=>{if(!blob){toast('Nu am putut exporta imaginea.');return}const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='autoads-reclama-'+ratioParts.join('x')+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);toast('Imaginea cu text a fost salvată în formatul selectat.')},'image/png')});function wrapText(ctx,text,x,y,maxWidth,lineHeight,maxLines){let words=text.split(/\s+/),line='',n=0;for(let i=0;i<words.length;i++){const test=line+words[i]+' ';if(ctx.measureText(test).width>maxWidth&&i>0){ctx.fillText(line,x,y+n*lineHeight,maxWidth);line=words[i]+' ';n++;if(n>=maxLines-1)break}else line=test}ctx.fillText(line.trim(),x,y+n*lineHeight,maxWidth)}
 async function share(platform){if(!selectedFiles.length){toast('Adaugă mai întâi materialul reclamei.');return}const file=selectedFiles[activeMediaIndex];const caption=($('outTitle').value+'\n\n'+$('outCaption').value).trim();try{if(navigator.share){let shareData={title:$('outTitle').value||'Reclama mea',text:caption};if(file&&navigator.canShare){try{if(navigator.canShare({files:[file]}))shareData.files=[file]}catch(e){}}await navigator.share(shareData);toast('S-a deschis meniul de distribuire. Verifică ce a preluat aplicația.')}else{await navigator.clipboard.writeText(caption);toast('Text copiat. Deschide '+platform+' și selectează materialul din galerie.')}}catch(e){if(e.name!=='AbortError')toast('Partajarea directă nu este disponibilă aici. Copiază descrierea și distribuie din galerie.')}}
 $('shareTikTok').addEventListener('click',()=>share('TikTok'));$('shareInstagram').addEventListener('click',()=>share('Instagram'));$('shareOther').addEventListener('click',()=>share('platforma aleasă'));
 </script><script src="./project-library.js" defer></script></body></html>
