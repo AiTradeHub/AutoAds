@@ -1,0 +1,16 @@
+{
+  "id": "./",
+  "name": "AutoAds — Creator de reclame",
+  "short_name": "AutoAds",
+  "description": "Prototip mobil pentru pregătirea reclamelor din fotografiile și videoclipurile proprii.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090a12",
+  "theme_color": "#090a12",
+  "icons": [
+    {"src":"icon-192.svg","sizes":"any","type":"image/svg+xml","purpose":"any"},
+    {"src":"icon-512.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}
+  ]
+}
