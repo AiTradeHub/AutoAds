@@ -22,7 +22,7 @@ assert.ok(html.includes('id="saveProject"'), 'Save project control should exist'
 assert.ok(html.includes('id="newProject"'), 'New project control should exist');
 assert.ok(html.includes('id="scheduleCard"'), 'Local publication calendar should exist');
 assert.ok(html.includes('id="addSchedule"'), 'Calendar add control should exist');
-assert.match(html, /fetch\('\\/api\\/generate'/, 'UI should call the AI endpoint');
+assert.ok(html.includes("fetch('/api/generate'"), 'UI should call the AI endpoint');
 assert.match(html, /async function exportVideo\(file\)/, 'Video export should be implemented');
 assert.doesNotMatch(html, /exportul video cu text imprimat permanent nu este implementat/i, 'UI must not claim video export is missing');
 assert.match(projectScript, /indexedDB\.open\(DB_NAME/, 'Projects should persist using IndexedDB');
