@@ -58,7 +58,7 @@ const inlineScripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script
 for (const [index, script] of inlineScripts.entries()) new vm.Script(script, { filename: 'index.inline-' + index + '.js' });
 new vm.Script(projectScript, { filename: 'project-library.js' });
 new vm.Script(sw, { filename: 'sw.js' });
-new vm.Script(workerSource.replace(/^export default\s*/, 'const worker = '), { filename: 'worker.js' });
+new vm.Script(workerSource.replace(/export default\s*/, 'const worker = '), { filename: 'worker.js' });
 
 for (const source of [html, publicHtml]) {
   for (const match of source.matchAll(/<(?:script|link|img)\b[^>]*(?:src|href)="([^"]+)"/gi)) {
