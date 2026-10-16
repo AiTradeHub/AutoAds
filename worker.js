@@ -1,4 +1,12 @@
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
+const requestBuckets = new Map();
+function rateLimited(ip) {
+  const now = Date.now();
+  const entry = requestBuckets.get(ip);
+  if (!entry || now - entry.startedAt >= 60000) { requestBuckets.set(ip, { startedAt: now, count: 1 }); return false; }
+  entry.count += 1;
+  return entry.count > 12;
+}
 function json(data, status = 200) { return new Response(JSON.stringify(data), { status: status, headers: JSON_HEADERS }); }
 function clean(value, max = 800) { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
 function parseModelOutput(output) {
@@ -15,6 +23,10 @@ export default {
     if (url.pathname === "/api/health") return json({ ok: true, aiAvailable: Boolean(env.AI), service: "autoads" });
     if (url.pathname !== "/api/generate") return env.ASSETS ? env.ASSETS.fetch(request) : new Response("Not found", { status: 404 });
     if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+    const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+    if (rateLimited(ip)) return json({ error: "Ai atins limita temporară. Încearcă din nou peste un minut." }, 429);
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > 8192) return json({ error: "Cererea este prea mare." }, 413);
     if (!env.AI || typeof env.AI.run !== "function") return json({ error: "AI-ul nu este configurat în Cloudflare." }, 503);
     let input;
     try { input = await request.json(); } catch (error) { return json({ error: "Cererea trebuie să conțină JSON valid." }, 400); }
