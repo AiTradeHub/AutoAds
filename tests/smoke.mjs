@@ -15,10 +15,15 @@ assert.match(html, /name="viewport"/, 'App should include a responsive viewport'
 assert.ok(html.includes('id="projectLibraryCard"'), 'Saved projects UI should exist');
 assert.ok(html.includes('id="saveProject"'), 'Save project control should exist');
 assert.ok(html.includes('id="newProject"'), 'New project control should exist');
+assert.ok(html.includes('id="scheduleCard"'), 'Local publication calendar should exist');
+assert.ok(html.includes('id="addSchedule"'), 'Calendar add control should exist');
 assert.match(projectScript, /indexedDB\.open\(DB_NAME/, 'Projects should persist using IndexedDB');
 assert.match(projectScript, /media: files/, 'Project records should preserve selected media files');
 assert.match(projectScript, /function loadProject/, 'Project restore behavior should exist');
 assert.match(projectScript, /function deleteProject/, 'Project deletion behavior should exist');
+assert.match(projectScript, /createObjectStore\('schedules'/, 'Calendar entries should persist in IndexedDB');
+assert.match(projectScript, /function addSchedule/, 'Calendar scheduling behavior should exist');
+assert.match(projectScript, /scheduledDate\.getTime\(\) <= Date\.now\(\)/, 'Past schedule times should be rejected');
 assert.match(sw, /'\.\/project-library\.js'/, 'Offline shell should cache the project library script');
 assert.ok(manifest.name && manifest.start_url, 'PWA manifest should include name and start URL');
 
