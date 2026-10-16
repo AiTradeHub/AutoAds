@@ -2,7 +2,7 @@
   'use strict';
   const $ = (id) => document.getElementById(id);
   const DB_NAME = 'autoads-local-projects';
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
   const STORE = 'projects';
   let dbPromise;
   let activeProjectId = null;
@@ -28,8 +28,15 @@
           const store = database.createObjectStore(STORE, { keyPath: 'id' });
           store.createIndex('updatedAt', 'updatedAt', { unique: false });
         }
+        if (!database.objectStoreNames.contains('schedules')) {
+          const schedules = database.createObjectStore('schedules', { keyPath: 'id' });
+          schedules.createIndex('scheduledFor', 'scheduledFor', { unique: false });
+        }
       };
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        request.result.onversionchange = () => request.result.close();
+        resolve(request.result);
+      };
       request.onerror = () => reject(request.error || new Error('Baza locală nu a putut fi deschisă.'));
       request.onblocked = () => reject(new Error('Închide celelalte file AutoAds și încearcă din nou.'));
     });
@@ -229,6 +236,156 @@
     }
   }
 
+
+  function scheduleStatus(message, isError = false) {
+    const node = $('scheduleStatus');
+    if (!node) return;
+    node.textContent = message;
+    node.style.color = isError ? '#ffb4b4' : '';
+  }
+
+  async function allSchedules() {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const request = db.transaction('schedules', 'readonly').objectStore('schedules').getAll();
+      request.onsuccess = () => resolve(request.result.sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor)));
+      request.onerror = () => reject(request.error || new Error('Nu am putut citi calendarul.'));
+    });
+  }
+
+  async function putSchedule(item) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('schedules', 'readwrite');
+      tx.objectStore('schedules').put(item);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('Nu am putut salva programarea.'));
+    });
+  }
+
+  async function removeSchedule(id) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('schedules', 'readwrite');
+      tx.objectStore('schedules').delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('Nu am putut șterge programarea.'));
+    });
+  }
+
+  async function renderSchedules() {
+    const container = $('scheduledItems');
+    if (!container) return;
+    container.replaceChildren();
+    let items;
+    try {
+      items = await allSchedules();
+    } catch (error) {
+      scheduleStatus(error.message || 'Calendarul nu a putut fi încărcat.', true);
+      return;
+    }
+    if (!items.length) {
+      const empty = document.createElement('p');
+      empty.className = 'hint';
+      empty.textContent = 'Nu ai postări planificate încă.';
+      container.appendChild(empty);
+      return;
+    }
+    items.forEach((item) => {
+      const row = document.createElement('div');
+      row.className = 'scheduled-item' + (item.done ? ' done' : '');
+      const main = document.createElement('div');
+      main.className = 'scheduled-item-main';
+      const title = document.createElement('strong');
+      title.textContent = item.title || 'Postare AutoAds';
+      const when = document.createElement('small');
+      when.textContent = new Date(item.scheduledFor).toLocaleString('ro-RO', { dateStyle: 'medium', timeStyle: 'short' }) + ' · ' + item.platform + (item.done ? ' · Finalizată' : '');
+      main.append(title, when);
+      if (item.note) {
+        const note = document.createElement('div');
+        note.className = 'scheduled-item-note';
+        note.textContent = item.note;
+        main.appendChild(note);
+      }
+      const actions = document.createElement('div');
+      actions.className = 'scheduled-item-actions';
+      if (!item.done) {
+        actions.appendChild(safeButton('Marchează făcută', 'secondary schedule-done', async () => {
+          item.done = true;
+          try {
+            await putSchedule(item);
+            scheduleStatus('Postarea a fost marcată ca finalizată. AutoAds nu a publicat-o automat.');
+            await renderSchedules();
+          } catch (error) {
+            scheduleStatus(error.message || 'Nu am putut actualiza postarea.', true);
+          }
+        }));
+      }
+      actions.appendChild(safeButton('Șterge', 'secondary danger', async () => {
+        if (!window.confirm('Ștergi această intrare din calendar?')) return;
+        try {
+          await removeSchedule(item.id);
+          scheduleStatus('Intrarea a fost ștearsă din calendarul local.');
+          await renderSchedules();
+        } catch (error) {
+          scheduleStatus(error.message || 'Nu am putut șterge intrarea.', true);
+        }
+      }));
+      row.append(main, actions);
+      container.appendChild(row);
+    });
+  }
+
+  async function addSchedule() {
+    const date = $('scheduleDate').value;
+    const time = $('scheduleTime').value;
+    if (!date || !time) {
+      scheduleStatus('Alege data și ora pentru postare.', true);
+      return;
+    }
+    const scheduledDate = new Date(date + 'T' + time);
+    if (Number.isNaN(scheduledDate.getTime())) {
+      scheduleStatus('Data sau ora nu este validă.', true);
+      return;
+    }
+    if (scheduledDate.getTime() <= Date.now()) {
+      scheduleStatus('Alege o dată și o oră din viitor.', true);
+      return;
+    }
+    const platform = $('schedulePlatform').value;
+    const title = $('projectName').value.trim() || $('product').value.trim() || $('business').value.trim() || 'Postare AutoAds';
+    const item = {
+      id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(16).slice(2)),
+      title: title.slice(0, 100),
+      platform,
+      scheduledFor: scheduledDate.toISOString(),
+      note: $('scheduleNote').value.trim(),
+      caption: $('outCaption').value,
+      done: false,
+      createdAt: Date.now()
+    };
+    $('addSchedule').disabled = true;
+    try {
+      await putSchedule(item);
+      $('scheduleNote').value = '';
+      scheduleStatus('Postarea a fost adăugată în calendarul local. Nu va fi publicată automat.');
+      await renderSchedules();
+    } catch (error) {
+      scheduleStatus(error.message || 'Nu am putut salva postarea. Verifică spațiul disponibil în browser.', true);
+    } finally {
+      $('addSchedule').disabled = false;
+    }
+  }
+
+  function setDefaultScheduleDate() {
+    const now = new Date();
+    const localDate = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
+    $('scheduleDate').value = localDate;
+    $('scheduleDate').min = localDate;
+    const selected = document.querySelector('[data-platform].selected');
+    if (selected) $('schedulePlatform').value = selected.dataset.platform;
+  }
+
   function startNewProject() {
     if (!window.confirm('Începi un proiect nou? Asigură-te că ai salvat modificările proiectului curent.')) return;
     activeProjectId = null;
@@ -257,6 +414,9 @@
   document.addEventListener('DOMContentLoaded', () => {
     $('saveProject')?.addEventListener('click', saveProject);
     $('newProject')?.addEventListener('click', startNewProject);
+    $('addSchedule')?.addEventListener('click', addSchedule);
+    setDefaultScheduleDate();
     renderProjects();
+    renderSchedules();
   });
 })();
